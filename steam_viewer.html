@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steam Game Stats Viewer</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+        :root {
+            --primary-bg: #1b2838; /* Steam dark blue */
+            --secondary-bg: #2a475e; /* Steam medium blue */
+            --tertiary-bg: #171a21; /* Steam very dark blue */
+            --accent-color: #66c0f4; /* Steam light blue */
+            --text-color: #c7d5e0; /* Steam light grey/blue text */
+            --text-highlight: #ffffff;
+            --border-color: #2c3e50;
+            --success-color: #2ecc71;
+            --error-color: #e74c3c;
+            --card-bg: #203142;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: var(--secondary-bg);
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: var(--accent-color);
+            text-align: center;
+            margin-bottom: 25px;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 10px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            align-items: center;
+        }
+
+        .input-group input[type="text"],
+        .input-group input[type="password"] {
+            flex-grow: 1;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            background-color: var(--tertiary-bg);
+            color: var(--text-highlight);
+            font-size: 16px;
+        }
+
+        .input-group input[type="text"]::placeholder {
+            color: var(--text-color);
+            opacity: 0.7;
+        }
+
+        .input-group button {
+            padding: 12px 25px;
+            background-color: var(--accent-color);
+            color: var(--tertiary-bg);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+
+        .input-group button:hover {
+            background-color: #87cefa; /* Lighter shade of accent */
+        }
+
+        .message {
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .message.loading {
+            background-color: var(--tertiary-bg);
+            color: var(--accent-color);
+        }
+
+        .message.error {
+            background-color: var(--error-color);
+            color: var(--text-highlight);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .stat-card h2 {
+            color: var(--accent-color);
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+        
+        .stat-card h3 {
+            color: var(--text-highlight);
+            margin-top: 15px;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px dashed #3a5f7e;
+        }
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-item .label {
+            color: var(--text-color);
+            font-weight: 400;
+        }
+
+        .stat-item .value {
+            color: var(--text-highlight);
+            font-weight: 500;
+        }
+
+        .achievements-list li {
+            padding: 5px 0;
+            color: var(--success-color);
+        }
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>CS Stats Viewer (appid: 730)</h1>
+
+        <div class="input-group">
+            <input type="password" id="steamApiKey" placeholder="Enter Steam API Key">
+            <input type="text" id="steam64Id" placeholder="Enter Steam64 ID">
+            <button id="fetchStatsBtn">Fetch Stats</button>
+        </div>
+
+        <div id="messageArea"></div>
+
+        <div id="statsOutput" style="display: none;">
+            <div class="stat-card" id="playerInfoCard">
+                <h2>Player Information</h2>
+                <div id="playerInfoContent"></div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card" id="overallStatsCard">
+                    <h2>Overall Stats</h2>
+                    <div id="overallStatsContent"></div>
+                </div>
+
+                <div class="stat-card" id="lastMatchStatsCard">
+                    <h2>Last Match Stats</h2>
+                    <div id="lastMatchStatsContent"></div>
+                </div>
+            </div>
+            
+            <div class="stat-card" id="weaponStatsCard" style="margin-top: 20px;">
+                <h2>Weapon Stats</h2>
+                <div id="weaponStatsContent" class="stats-grid"></div>
+            </div>
+
+            <div class="stat-card" id="mapStatsCard" style="margin-top: 20px;">
+                <h2>Map Stats</h2>
+                <div id="mapStatsContent" class="stats-grid"></div>
+            </div>
+            
+            <div class="stat-card" id="miscStatsCard" style="margin-top: 20px;">
+                <h2>Miscellaneous Stats</h2>
+                <div id="miscStatsContent"></div>
+            </div>
+
+            <div class="stat-card" id="achievementsCard" style="margin-top: 20px;">
+                <h2>Achievements</h2>
+                <ul id="achievementsList" class="achievements-list"></ul>
+            </div>
+             <div class="stat-card" id="giLessonStatsCard" style="margin-top: 20px;">
+                <h2>GI Lesson Stats</h2>
+                <div id="giLessonStatsContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const apiKeyInput = document.getElementById('steamApiKey');
+        const steamIdInput = document.getElementById('steam64Id');
+        const fetchButton = document.getElementById('fetchStatsBtn');
+        const messageArea = document.getElementById('messageArea');
+        const statsOutput = document.getElementById('statsOutput');
+
+        // Output containers
+        const playerInfoContent = document.getElementById('playerInfoContent');
+        const overallStatsContent = document.getElementById('overallStatsContent');
+        const weaponStatsContent = document.getElementById('weaponStatsContent');
+        const mapStatsContent = document.getElementById('mapStatsContent');
+        const lastMatchStatsContent = document.getElementById('lastMatchStatsContent');
+        const miscStatsContent = document.getElementById('miscStatsContent');
+        const achievementsList = document.getElementById('achievementsList');
+        const giLessonStatsContent = document.getElementById('giLessonStatsContent');
+
+        // Pre-fill from localStorage if available
+        apiKeyInput.value = localStorage.getItem('steamApiKey') || '';
+        steamIdInput.value = localStorage.getItem('steam64Id') || '';
+
+        fetchButton.addEventListener('click', async () => {
+            const apiKey = apiKeyInput.value.trim();
+            const steamId = steamIdInput.value.trim();
+
+            if (!apiKey || !steamId) {
+                displayMessage('Please enter both Steam API Key and Steam64 ID.', 'error');
+                return;
+            }
+            localStorage.setItem('steamApiKey', apiKey);
+            localStorage.setItem('steam64Id', steamId);
+
+            displayMessage('Fetching stats...', 'loading');
+            statsOutput.style.display = 'none';
+
+            // UPDATED URL to point to your proxy
+            const apiUrl = `/proxy_steam_stats?key=${encodeURIComponent(apiKey)}&steamid=${encodeURIComponent(steamId)}`;
+            
+            try {
+                const response = await fetch(apiUrl); // This now calls your Flask proxy
+                const responseText = await response.text(); // Get raw text first to avoid consuming body twice
+                let data;
+
+                try {
+                    data = JSON.parse(responseText); // Try to parse as JSON
+                } catch (e) {
+                    // Response was not valid JSON
+                    if (!response.ok) {
+                        displayMessage(`API Error: ${response.status} ${response.statusText}. Server returned non-JSON. Content: ${responseText.substring(0, 200)}...`, 'error');
+                    } else {
+                        // Should not happen if API behaves, but good to cover
+                        displayMessage(`API Error: Received non-JSON response from server (Status OK). Content: ${responseText.substring(0,200)}...`, 'error');
+                    }
+                    return;
+                }
+
+                if (!response.ok) {
+                    // The response status indicates an error (e.g., 4xx, 5xx)
+                    let errorMsg = `Error: ${response.status} ${response.statusText}`; // Default error
+                    
+                    // Try to get more specific error from parsed JSON data (which might be an error object from Steam/Proxy)
+                    if (data && data.playerstats && data.playerstats.error) { // Steam's error format
+                         errorMsg = `API Error: ${data.playerstats.error}`;
+                    } else if (data && data.error) { // Proxy's own error format or simple error JSON from Steam
+                         errorMsg = `API/Proxy Error: ${data.error}`;
+                         if (data.details) errorMsg += ` Details: ${data.details}`;
+                    } else if (response.status === 500 && responseText.includes("Invalid Steam ID")) { // Check original text for specific cases
+                        errorMsg = "API Error: Invalid Steam ID or profile is private.";
+                    } else if (response.status === 403) { // 403 from Steam via proxy usually means bad API key
+                        errorMsg = "API Error: Access Denied (403). Check your API Key.";
+                    }
+                    
+                    displayMessage(errorMsg, 'error');
+                    return;
+                }
+
+                // --- Response is OK and data is parsed JSON ---
+
+                if (!data.playerstats || !data.playerstats.stats) {
+                    let errorDetail = "No player stats found in the response.";
+                    if (data.playerstats && data.playerstats.error) { // Steam API specific error structure
+                        errorDetail = data.playerstats.error;
+                    } else if (Object.keys(data).length === 0 || responseText === "{}") { // Empty JSON object from API
+                        errorDetail = "Received empty response. This might indicate an invalid SteamID, a private profile, or that the user hasn't played the game.";
+                    }
+                    displayMessage(`API Error: ${errorDetail}`, 'error');
+                    return;
+                }
+                
+                renderStats(data.playerstats);
+                messageArea.innerHTML = ''; // Clear loading/error message
+                statsOutput.style.display = 'block';
+
+            } catch (error) { // Catches network errors from fetch() itself, or programming errors
+                console.error('Fetch/Processing error:', error);
+                displayMessage(`Failed to fetch or process stats: ${error.message}. Check console for details. Ensure proxy server is running.`, 'error');
+            }
+        });
+
+        function displayMessage(message, type = 'info') {
+            messageArea.innerHTML = `<div class="message ${type}">${message}</div>`;
+        }
+
+        function formatStatName(name) {
+            return name
+                .replace(/^total_|^last_match_|^GI\.lesson\./, '') // Remove common prefixes
+                .replace(/_/g, ' ') // Replace underscores with spaces
+                .replace(/\b\w/g, l => l.toUpperCase()); // Capitalize each word
+        }
+        
+        function formatTime(seconds) {
+            if (isNaN(seconds) || seconds < 0) return "N/A";
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            return `${h}h ${m}m ${s}s`;
+        }
+
+        function createStatElement(label, value, valueClass = 'value') {
+            const itemDiv = document.createElement('div');
+            itemDiv.classList.add('stat-item');
+            itemDiv.innerHTML = `<span class="label">${label}:</span> <span class="${valueClass}">${value}</span>`;
+            return itemDiv;
+        }
+        
+        function findStatValue(statsArray, statName, defaultValue = 0) {
+            const stat = statsArray.find(s => s.name === statName);
+            return stat ? stat.value : defaultValue;
+        }
+
+        function renderStats(playerstats) {
+            // Clear previous stats
+            [playerInfoContent, overallStatsContent, weaponStatsContent, mapStatsContent, lastMatchStatsContent, miscStatsContent, achievementsList, giLessonStatsContent]
+                .forEach(el => el.innerHTML = '');
+
+            // Player Info
+            playerInfoContent.appendChild(createStatElement('SteamID', playerstats.steamID));
+            playerInfoContent.appendChild(createStatElement('Game Name', playerstats.gameName));
+
+            const allStats = playerstats.stats;
+
+            // Overall Stats
+            const totalKills = findStatValue(allStats, 'total_kills');
+            const totalDeaths = findStatValue(allStats, 'total_deaths');
+            const kdRatio = totalDeaths > 0 ? (totalKills / totalDeaths).toFixed(2) : 'N/A';
+            const totalWins = findStatValue(allStats, 'total_wins');
+            const totalRoundsPlayed = findStatValue(allStats, 'total_rounds_played');
+            const winRate = totalRoundsPlayed > 0 ? ((findStatValue(allStats, 'total_matches_won') / findStatValue(allStats, 'total_matches_played',1)) * 100).toFixed(2) + '%' : 'N/A';
+             // total_matches_won can be 0, total_matches_played can be 0 or not present for new players.
+            const totalMatchesPlayed = findStatValue(allStats, 'total_matches_played');
+            const overallWinRate = totalMatchesPlayed > 0 ? ((findStatValue(allStats, 'total_matches_won') / totalMatchesPlayed) * 100).toFixed(2) + '%' : 'N/A';
+
+
+            const totalShotsFired = findStatValue(allStats, 'total_shots_fired');
+            const totalShotsHit = findStatValue(allStats, 'total_shots_hit');
+            const accuracy = totalShotsFired > 0 ? ((totalShotsHit / totalShotsFired) * 100).toFixed(2) + '%' : 'N/A';
+            const headshotKills = findStatValue(allStats, 'total_kills_headshot');
+            const headshotPercentage = totalKills > 0 ? ((headshotKills / totalKills) * 100).toFixed(2) + '%' : 'N/A';
+
+            overallStatsContent.appendChild(createStatElement('Total Kills', totalKills.toLocaleString()));
+            overallStatsContent.appendChild(createStatElement('Total Deaths', totalDeaths.toLocaleString()));
+            overallStatsContent.appendChild(createStatElement('K/D Ratio', kdRatio));
+            overallStatsContent.appendChild(createStatElement('Total Wins (Rounds)', totalWins.toLocaleString()));
+            overallStatsContent.appendChild(createStatElement('Total Matches Won', findStatValue(allStats, 'total_matches_won').toLocaleString()));
+            overallStatsContent.appendChild(createStatElement('Total Matches Played', totalMatchesPlayed.toLocaleString()));
+            overallStatsContent.appendChild(createStatElement('Overall Win Rate', overallWinRate));
+            overallStatsContent.appendChild(createStatElement('Total Rounds Played', totalRoundsPlayed.toLocaleString()));
+            overallStatsContent.appendChild(createStatElement('Time Played', formatTime(findStatValue(allStats, 'total_time_played'))));
+            overallStatsContent.appendChild(createStatElement('Accuracy', accuracy));
+            overallStatsContent.appendChild(createStatElement('Headshot Kills', headshotKills.toLocaleString()));
+            overallStatsContent.appendChild(createStatElement('Headshot %', headshotPercentage));
+            overallStatsContent.appendChild(createStatElement('MVPs', findStatValue(allStats, 'total_mvps').toLocaleString()));
+            overallStatsContent.appendChild(createStatElement('Damage Done', findStatValue(allStats, 'total_damage_done').toLocaleString()));
+            overallStatsContent.appendChild(createStatElement('Money Earned', '$' + findStatValue(allStats, 'total_money_earned').toLocaleString()));
+            
+            // Weapon Stats, Map Stats, Last Match, Misc, GI Lessons
+            const weaponData = {};
+            const mapData = {};
+            const knownWeaponSuffixes = ['_kills', '_shots', '_hits'];
+            const knownMapSuffixes = ['_wins_map_', '_rounds_map_'];
+            
+            allStats.forEach(stat => {
+                const name = stat.name;
+                const value = stat.value;
+
+                // Weapon Stats
+                let matchedWeapon = false;
+                for (const suffix of knownWeaponSuffixes) {
+                    if (name.startsWith('total' + suffix + '_') || name.startsWith('last_match_favweapon' + suffix)) { // e.g. total_kills_ak47 or last_match_favweapon_kills
+                        let weaponKey = name.replace('total' + suffix + '_', '').replace('last_match_favweapon' + suffix, '');
+                        if (name.startsWith('last_match_favweapon')) weaponKey = "FavWpn (" + weaponKey + ")"; // Special label for fav weapon
+                        
+                        if (!weaponData[weaponKey]) weaponData[weaponKey] = {};
+                        weaponData[weaponKey][suffix.substring(1)] = value; // Store as 'kills', 'shots', 'hits'
+                        matchedWeapon = true;
+                        break;
+                    }
+                }
+                if (matchedWeapon) return;
+
+
+                // Map Stats
+                let matchedMap = false;
+                for (const prefix of knownMapSuffixes) {
+                    if (name.startsWith('total' + prefix)) { // e.g., total_wins_map_de_dust2
+                        const mapName = formatStatName(name.replace('total' + prefix, ''));
+                        if (!mapData[mapName]) mapData[mapName] = {};
+                        if (prefix === '_wins_map_') mapData[mapName].wins = value;
+                        if (prefix === '_rounds_map_') mapData[mapName].rounds = value;
+                        matchedMap = true;
+                        break;
+                    }
+                }
+                if (matchedMap) return;
+
+                // Last Match Stats
+                if (name.startsWith('last_match_')) {
+                    let label = formatStatName(name);
+                    let displayValue = value.toLocaleString();
+                    if (name === 'last_match_favweapon_id') {
+                        // Could map to weapon name if we had a list, for now just show ID
+                        label = "Last Match Fav Wpn ID";
+                    } else if (name.endsWith('_wins') && name !== 'last_match_wins') {
+                         label = formatStatName(name.replace('last_match_', '')); // "T Wins", "CT Wins"
+                    }
+                    lastMatchStatsContent.appendChild(createStatElement(label, displayValue));
+                }
+                // GI Lesson Stats
+                else if (name.startsWith('GI.lesson.')) {
+                    giLessonStatsContent.appendChild(createStatElement(formatStatName(name), value.toLocaleString()));
+                }
+                // Misc Stats (that are not general, weapon, map, or last match)
+                // Add specific known misc stats or use a more robust exclusion list for already categorized ones
+                else if (![
+                    'total_kills', 'total_deaths', 'total_time_played', 'total_wins', 'total_damage_done', 
+                    'total_money_earned', 'total_rounds_played', 'total_shots_fired', 'total_shots_hit', 
+                    'total_kills_headshot', 'total_mvps', 'total_matches_won', 'total_matches_played'
+                    ].includes(name) && !name.includes('_map_') && !name.includes('_kills_') && !name.includes('_shots_') && !name.includes('_hits_')) {
+                     miscStatsContent.appendChild(createStatElement(formatStatName(name), value.toLocaleString()));
+                }
+            });
+
+            // Render Weapon Stats
+            Object.entries(weaponData).forEach(([weaponName, data]) => {
+                const weaponCard = document.createElement('div');
+                weaponCard.classList.add('stat-card', 'weapon-detail-card'); // Add a class for specific styling if needed
+                
+                const weaponTitle = document.createElement('h3');
+                weaponTitle.textContent = formatStatName(weaponName);
+                weaponCard.appendChild(weaponTitle);
+
+                if (data.kills !== undefined) weaponCard.appendChild(createStatElement('Kills', (data.kills || 0).toLocaleString()));
+                if (data.shots !== undefined) weaponCard.appendChild(createStatElement('Shots Fired', (data.shots || 0).toLocaleString()));
+                if (data.hits !== undefined) weaponCard.appendChild(createStatElement('Shots Hit', (data.hits || 0).toLocaleString()));
+                
+                const accuracy = (data.shots || 0) > 0 ? (((data.hits || 0) / data.shots) * 100).toFixed(2) + '%' : 'N/A';
+                if (data.shots !== undefined) weaponCard.appendChild(createStatElement('Accuracy', accuracy));
+                
+                weaponStatsContent.appendChild(weaponCard);
+            });
+            if(weaponStatsContent.children.length === 0) weaponStatsContent.innerHTML = "<p>No detailed weapon stats found.</p>";
+
+
+            // Render Map Stats
+            Object.entries(mapData).forEach(([mapName, data]) => {
+                const mapCard = document.createElement('div');
+                mapCard.classList.add('stat-card', 'map-detail-card');
+
+                const mapTitle = document.createElement('h3');
+                mapTitle.textContent = mapName;
+                mapCard.appendChild(mapTitle);
+
+                if (data.wins !== undefined) mapCard.appendChild(createStatElement('Wins', (data.wins || 0).toLocaleString()));
+                if (data.rounds !== undefined) mapCard.appendChild(createStatElement('Rounds Played', (data.rounds || 0).toLocaleString()));
+                
+                const winRate = (data.rounds || 0) > 0 ? (((data.wins || 0) / data.rounds) * 100).toFixed(2) + '%' : 'N/A';
+                if (data.rounds !== undefined) mapCard.appendChild(createStatElement('Win Rate', winRate));
+
+                mapStatsContent.appendChild(mapCard);
+            });
+            if(mapStatsContent.children.length === 0) mapStatsContent.innerHTML = "<p>No detailed map stats found.</p>";
+
+            // Achievements
+            if (playerstats.achievements && playerstats.achievements.length > 0) {
+                playerstats.achievements.forEach(ach => {
+                    if (ach.achieved === 1) {
+                        const li = document.createElement('li');
+                        li.textContent = formatStatName(ach.name);
+                        achievementsList.appendChild(li);
+                    }
+                });
+            } else {
+                achievementsList.innerHTML = '<li>No achievements earned or reported.</li>';
+            }
+            if(achievementsList.children.length === 0) achievementsList.innerHTML = '<li>No achievements earned or reported.</li>';
+            if(miscStatsContent.children.length === 0) miscStatsContent.innerHTML = "<p>No miscellaneous stats found.</p>";
+            if(giLessonStatsContent.children.length === 0) giLessonStatsContent.innerHTML = "<p>No GI Lesson stats found.</p>";
+             if(lastMatchStatsContent.children.length === 0) lastMatchStatsContent.innerHTML = "<p>No last match stats found (or not reported).</p>";
+        }
+
+    </script>
+</body>
+</html>
