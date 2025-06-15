@@ -1,6 +1,6 @@
 # Steam CS (appid: 730) Stats Viewer
 
-A web application to view your Counter-Strike (Global Offensive / CS2 - appid 730) game statistics using the Steam Web API. This application uses a Python Flask backend to proxy requests to the Steam API, bypassing browser CORS restrictions.
+A web application to view your Counter-Strike (Global Offensive / CS2 - appid 730) game statistics using the Steam Web API. This application uses a Python Flask backend to proxy requests to the Steam API.
 
 ![{126DA0DA-9AD5-4EF5-BAD4-3C8E098FD0E1}](https://github.com/user-attachments/assets/d659cf62-7c82-4ed7-ab7a-d99b54630851)
 
